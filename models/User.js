@@ -45,12 +45,14 @@ const UserSchema = new mongoose.Schema({
   },
 })
 
+// jason web token set up
 UserSchema.methods.createJWT = function () {
   return jwt.sign({ userId: this._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_LIFETIME,
   })
 }
 
+// password comparison for the login
 UserSchema.methods.comparePassword = async function (candidatePassword) {
   const isMatch = await bcrypt.compare(candidatePassword, this.password)
   return isMatch
