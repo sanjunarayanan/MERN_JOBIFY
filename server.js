@@ -6,7 +6,7 @@ import 'express-async-errors'
 import morgan from 'morgan'
 // Db and Authenticated user..
 import connectDb from './db/connect.js'
-
+import authenticateUser from './middleware/auth.js'
 // routers
 import authRouter from './router/authRoutes.js'
 import jobsRouter from './router/jobsRoutes.js'

@@ -12,6 +12,9 @@ import {
   LOGIN_USER_ERROR,
   TOGGLE_SIDEBAR,
   LOGOUT_USER,
+  UPDATE_USER_BEGIN,
+  UPDATE_USER_SUCCESS,
+  UPDATE_USER_ERROR,
 } from './actions'
 
 // set as default
@@ -34,6 +37,46 @@ export const initialState = {
 const AppContext = createContext()
 export const AppProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState)
+
+  // axios setup
+
+  const authFetch = axios.create({
+    baseURL: '/api/v1',
+  })
+
+  // You can intercept requests or responses before they are handled by then or catch.
+
+  // Add a request interceptor
+  authFetch.interceptors.request.use(
+    function (config) {
+      // Do something before request is sent
+      config.headers.common['Authorization'] = `Bearer ${state.token}`
+      return config
+    },
+    function (error) {
+      // Do something with request error
+      console.log(error.response)
+      if (error.response.status === 401) {
+        console.log('AUTH ERROR')
+      }
+      return Promise.reject(error)
+    }
+  )
+
+  // Add a response interceptor
+  authFetch.interceptors.response.use(
+    function (response) {
+      // Any status code that lie within the range of 2xx cause this function to trigger
+      // Do something with response data
+
+      return response
+    },
+    function (error) {
+      // Any status codes that falls outside the range of 2xx cause this function to trigger
+      // Do something with response error
+      return Promise.reject(error)
+    }
+  )
 
   const displayAlert = () => {
     dispatch({ type: DISPLAY_ALERT })
@@ -116,6 +159,29 @@ export const AppProvider = ({ children }) => {
     }
     clearAlert()
   }
+
+  const updateUser = async (currentUser) => {
+    dispatch({ type: UPDATE_USER_BEGIN })
+    try {
+      const { data } = await authFetch.patch('/auth/updateUser', currentUser)
+      // no token
+      const { user, location, token } = data
+      dispatch({
+        type: UPDATE_USER_SUCCESS,
+        payload: { user, location, token },
+      })
+
+      addUserToLocalStorage({ user, location, token })
+    } catch (error) {
+      if (error.response.status !== 401) {
+        dispatch({
+          type: UPDATE_USER_ERROR,
+          payload: { msg: error.response.data.msg },
+        })
+      }
+    }
+    clearAlert()
+  }
   return (
     <AppContext.Provider
       value={{
@@ -126,6 +192,7 @@ export const AppProvider = ({ children }) => {
         loginUser,
         toggleSidebar,
         logoutUser,
+        updateUser,
       }}>
       {children}
     </AppContext.Provider>
