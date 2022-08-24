@@ -1,4 +1,10 @@
-import React, { useState, useReducer, useContext, createContext } from 'react'
+import React, {
+  useState,
+  useReducer,
+  useContext,
+  createContext,
+  useEffect,
+} from 'react'
 import axios from 'axios'
 import reducer from './reducer'
 import {
@@ -15,6 +21,18 @@ import {
   UPDATE_USER_BEGIN,
   UPDATE_USER_SUCCESS,
   UPDATE_USER_ERROR,
+  HANDLE_CHANGE,
+  CLEAR_VALUES,
+  CREATE_JOB_BEGIN,
+  CREATE_JOB_SUCCESS,
+  CREATE_JOB_ERROR,
+  GET_JOBS_BEGIN,
+  GET_JOBS_SUCCESS,
+  SET_EDIT_JOB,
+  DELETE_JOB_BEGIN,
+  EDIT_JOB_BEGIN,
+  EDIT_JOB_SUCCESS,
+  EDIT_JOB_ERROR,
 } from './actions'
 
 // set as default
@@ -23,6 +41,7 @@ const user = localStorage.getItem('user')
 const userLocation = localStorage.getItem('location')
 
 export const initialState = {
+  // user related
   isLoading: false,
   showAlert: false,
   alertMessage: '',
@@ -30,8 +49,21 @@ export const initialState = {
   user: user ? JSON.parse(user) : null,
   token: token,
   userLocation: userLocation || '',
-  jobLocation: userLocation || '',
+  // job related..
   showSidebar: false,
+  isEditing: false,
+  editJobId: '',
+  position: '',
+  company: '',
+  jobLocation: userLocation || '',
+  jobTypeOptions: ['full-time', 'part-time', 'remote', 'internship'],
+  jobType: 'full-time',
+  statusOptions: ['pending', 'interview', 'declined'],
+  status: 'pending',
+  jobs: [],
+  totalJobs: 0,
+  numOfPages: 1,
+  page: 1,
 }
 
 const AppContext = createContext()
@@ -43,6 +75,10 @@ export const AppProvider = ({ children }) => {
   const authFetch = axios.create({
     baseURL: '/api/v1',
   })
+
+  useEffect(() => {
+    getJobs()
+  }, [])
 
   // You can intercept requests or responses before they are handled by then or catch.
 
@@ -135,7 +171,6 @@ export const AppProvider = ({ children }) => {
     dispatch({ type: REGISTER_USER_BEGIN })
     try {
       const response = await axios.post('/api/v1/auth/register', currentUser)
-      console.log(response)
       const { user, token, location } = response.data
       dispatch({
         type: REGISTER_USER_SUCCESS,
@@ -182,6 +217,105 @@ export const AppProvider = ({ children }) => {
     }
     clearAlert()
   }
+
+  const handleChange = ({ name, value }) => {
+    dispatch({
+      type: HANDLE_CHANGE,
+      payload: { name, value },
+    })
+  }
+
+  const clearValues = () => {
+    dispatch({ type: CLEAR_VALUES })
+  }
+
+  const createJob = async () => {
+    dispatch({ type: CREATE_JOB_BEGIN })
+    try {
+      const { position, company, jobLocation, jobType, status } = state
+
+      await authFetch.post('/jobs', {
+        company,
+        position,
+        jobLocation,
+        jobType,
+        status,
+      })
+      dispatch({
+        type: CREATE_JOB_SUCCESS,
+      })
+      // call function instead clearValues()
+      dispatch({ type: CLEAR_VALUES })
+    } catch (error) {
+      if (error.response.status === 401) return
+      dispatch({
+        type: CREATE_JOB_ERROR,
+        payload: { msg: error.response.data.msg },
+      })
+    }
+    clearAlert()
+  }
+
+  const getJobs = async () => {
+    let url = `/jobs`
+
+    dispatch({ type: GET_JOBS_BEGIN })
+    try {
+      const { data } = await authFetch(url)
+      const { jobs, totalJobs, numOfPages } = data
+      dispatch({
+        type: GET_JOBS_SUCCESS,
+        payload: {
+          jobs,
+          totalJobs,
+          numOfPages,
+        },
+      })
+    } catch (error) {
+      console.log(error.response)
+      logoutUser()
+    }
+    clearAlert()
+  }
+
+  const deleteJob = async (jobId) => {
+    dispatch({ type: DELETE_JOB_BEGIN })
+    try {
+      await authFetch.delete(`/jobs/${jobId}`)
+      getJobs()
+    } catch (error) {
+      logoutUser()
+    }
+  }
+
+  const setEditJob = (id) => {
+    dispatch({ type: SET_EDIT_JOB, payload: { id } })
+  }
+  const editJob = async () => {
+    dispatch({ type: EDIT_JOB_BEGIN })
+    try {
+      const { position, company, jobLocation, jobType, status } = state
+      await authFetch.patch(`/jobs/${state.editJobId}`, {
+        company,
+        position,
+        jobLocation,
+        jobType,
+        status,
+      })
+      dispatch({
+        type: EDIT_JOB_SUCCESS,
+      })
+      dispatch({ type: CLEAR_VALUES })
+    } catch (error) {
+      if (error.response.status === 401) return
+      dispatch({
+        type: EDIT_JOB_ERROR,
+        payload: { msg: error.response.data.msg },
+      })
+    }
+    clearAlert()
+  }
+
   return (
     <AppContext.Provider
       value={{
@@ -193,6 +327,13 @@ export const AppProvider = ({ children }) => {
         toggleSidebar,
         logoutUser,
         updateUser,
+        handleChange,
+        clearValues,
+        createJob,
+        getJobs,
+        setEditJob,
+        deleteJob,
+        editJob,
       }}>
       {children}
     </AppContext.Provider>
