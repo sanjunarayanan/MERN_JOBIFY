@@ -33,6 +33,10 @@ import {
   EDIT_JOB_BEGIN,
   EDIT_JOB_SUCCESS,
   EDIT_JOB_ERROR,
+  SHOW_STATS_BEGIN,
+  SHOW_STATS_SUCCESS,
+  CLEAR_FILTERS,
+  CHANGE_PAGE,
 } from './actions'
 
 // set as default
@@ -64,6 +68,17 @@ export const initialState = {
   totalJobs: 0,
   numOfPages: 1,
   page: 1,
+
+  // stats
+  stats: {},
+  monthlyApplications: [],
+
+  // searching functionality
+  search: '',
+  searchStatus: 'all',
+  searchType: 'all',
+  sort: 'latest',
+  sortOptions: ['latest', 'oldest', 'a-z', 'z-a'],
 }
 
 const AppContext = createContext()
@@ -257,8 +272,12 @@ export const AppProvider = ({ children }) => {
   }
 
   const getJobs = async () => {
-    let url = `/jobs`
-
+    // will add page later
+    const { search, searchStatus, searchType, sort, page } = state
+    let url = `/jobs?page=${page}&status=${searchStatus}&jobType=${searchType}&sort=${sort}`
+    if (search) {
+      url = url + `&search=${search}`
+    }
     dispatch({ type: GET_JOBS_BEGIN })
     try {
       const { data } = await authFetch(url)
@@ -272,8 +291,7 @@ export const AppProvider = ({ children }) => {
         },
       })
     } catch (error) {
-      console.log(error.response)
-      logoutUser()
+      // logoutUser()
     }
     clearAlert()
   }
@@ -316,6 +334,33 @@ export const AppProvider = ({ children }) => {
     clearAlert()
   }
 
+  const showStats = async () => {
+    dispatch({ type: SHOW_STATS_BEGIN })
+    try {
+      const { data } = await authFetch('/jobs/stats')
+      dispatch({
+        type: SHOW_STATS_SUCCESS,
+        payload: {
+          stats: data.defaultStats,
+          monthlyApplications: data.monthlyApplications,
+        },
+      })
+    } catch (error) {
+      console.log(error.response)
+      logoutUser()
+    }
+
+    clearAlert()
+  }
+
+  const clearFilters = () => {
+    dispatch({ type: CLEAR_FILTERS })
+  }
+
+  const changePage = (page) => {
+    dispatch({ type: CHANGE_PAGE, payload: { page } })
+  }
+
   return (
     <AppContext.Provider
       value={{
@@ -334,6 +379,9 @@ export const AppProvider = ({ children }) => {
         setEditJob,
         deleteJob,
         editJob,
+        showStats,
+        clearFilters,
+        changePage,
       }}>
       {children}
     </AppContext.Provider>
