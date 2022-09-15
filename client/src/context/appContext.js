@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useReducer,
-  useContext,
-  createContext,
-  useEffect,
-} from 'react'
+import React, { useReducer, useContext, createContext, useEffect } from 'react'
 import axios from 'axios'
 import reducer from './reducer'
 import {
@@ -93,6 +87,7 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     getJobs()
+    // eslint-disable-next-line
   }, [])
 
   // You can intercept requests or responses before they are handled by then or catch.
@@ -291,7 +286,7 @@ export const AppProvider = ({ children }) => {
         },
       })
     } catch (error) {
-      // logoutUser()
+      logoutUser()
     }
     clearAlert()
   }
@@ -346,7 +341,6 @@ export const AppProvider = ({ children }) => {
         },
       })
     } catch (error) {
-      console.log(error.response)
       logoutUser()
     }
 
